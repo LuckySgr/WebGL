@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>WebGL基本概念（入门案例）</title>
+    <title>WebGL基本概念（入门案例--三角形）</title>
 </head>
 <style>
     body {
@@ -36,13 +36,7 @@
     }
 
 </script>
-<!--
-for most samples webgl-utils only provides shader compiling/linking and
-canvas resizing because why clutter the examples with code that's the same in every sample.
-See https://webglfundamentals.org/webgl/lessons/webgl-boilerplate.html
-and https://webglfundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
-for webgl-utils, m3, m4, and webgl-lessons-ui.
--->
+<!--webgl-utils 包含了编译和链接着色器的方法以及画布大小调整，避免太多重复性代码-->
 <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
 <script>
     // 创建着色器方法，输入参数：渲染上下文，着色器类型，数据源
