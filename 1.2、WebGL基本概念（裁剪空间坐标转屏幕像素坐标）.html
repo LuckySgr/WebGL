@@ -68,7 +68,7 @@
         // 使用WebglUtils编译着色器并链接到程序中
         let program = webglUtils.createProgramFromScripts(gl, ["vertex-shader-2d", "fragment-shader-2d"]);
 
-        // 查找顶点数据需要去的地方。
+        // 查找顶点数据需要去的地方。（[getAttribLocation]用于获取着色器中声明的变量，然后对其进行赋值[vertexAttribPointer]）
         let positionAttributeLocation = gl.getAttribLocation(program, "a_position");
 
         // 查找 uniform locations
