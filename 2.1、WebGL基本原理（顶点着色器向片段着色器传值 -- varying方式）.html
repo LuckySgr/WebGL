@@ -156,13 +156,25 @@
             gl.vertexAttribPointer(
                 positionAttributeLocation, size, type, normalize, stride, offset);
 
-            // Compute the matrix
+            // 计算矩阵
             let matrix = m3.projection(gl.canvas.clientWidth, gl.canvas.clientHeight);
             matrix = m3.translate(matrix, translation[0], translation[1]);
             matrix = m3.rotate(matrix, angleInRadians);
             matrix = m3.scale(matrix, scale[0], scale[1]);
 
-            // 设置矩阵。
+            console.log(matrix);
+
+            // 一个包含平移，旋转和缩放的的矩阵（matrix）
+
+            /**
+             *[
+             * 0.001703577465377748,   0,                         0,
+             * 0,                     -0.0021574972197413445,     0,
+             * -0.6592845320701599,    0.6763753890991211,        1
+             * ]
+             */
+
+            // 设置矩阵。(给 u_matrix 属性赋值)
             gl.uniformMatrix3fv(matrixLocation, false, matrix);
 
             // 绘制几何图形。
