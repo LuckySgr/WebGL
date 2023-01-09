@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebGL图像处理</title>
+</head>
+
+<style>
+  body {
+    margin: 0;
+  }
+
+  canvas {
+    width: 100vw;
+    height: 100vh;
+    display: block;
+  }
+</style>
+<body>
+<canvas id="container"></canvas>
+<script id="vertex-shader-2d" type="shader-info">
+    attribute vec2 a_position;
+
+    attribute vec2 a_texCoord;
+
+    uniform vec2 u_resolution;
+
+    varying vec2 v_texCoord;
+
+    void main() {
+      // 将矩形从像素转换为 0.0 到 1.0
+      vec2 zeroToOne = a_position / u_resolution;
+
+      // 从 0->1 转换为 0->2
+      vec2 zeroToTwo = zeroToOne * 2.0;
+
+      // 从 0->2 转换为 -1->+1（裁剪空间）
+      vec2 clipSpace = zeroToTwo - 1.0;
+
+      gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+
+      // 将 texCoord 传递给片段着色器
+      // GPU 将在点之间插入此值。
+      v_texCoord = a_texCoord;
+}
+
+</script>
+<script id="fragment-shader-2d" type="shader-info">
+    precision mediump float;
+
+    // 纹理
+    uniform sampler2D u_image;
+
+    // 从顶点着色器传入的 texCoords。
+    varying vec2 v_texCoord;
+
+    void main() {
+      gl_FragColor = texture2D(u_image, v_texCoord);
+    }
+
+</script>
+<!--webgl-utils 包含了编译和链接着色器的方法以及画布大小调整，避免太多重复性代码-->
+<script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+<script>
+  function main() {
+    let image = new Image();
+    image.src = "./img/swordFairy.webp";  // 必须是同一个域!!!
+    image.onload = function() {
+      render(image);
+    };
+  }
+
+  function render(image) {
+    // 获取 WebGL 上下文
+    let canvas = document.getElementById("container");
+    let gl = canvas.getContext("webgl");
+    if (!gl) {
+      return;
+    }
+
+    // 设置 GLSL 程序
+    let program = webglUtils.createProgramFromScripts(gl, ["vertex-shader-2d", "fragment-shader-2d"]);
+
+    // 获取attribute属性.
+    let positionLocation = gl.getAttribLocation(program, "a_position");
+
+    let texcoordLocation = gl.getAttribLocation(program, "a_texCoord");
+
+    // 创建一个缓冲区以放入三个 2d 剪辑空间点
+    let positionBuffer = gl.createBuffer();
+
+    // 将其绑定到 ARRAY_BUFFER（将其视为 ARRAY_BUFFER = positionBuffer）
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    // 设置一个与图像大小相同的矩形。
+    setRectangle(gl, 0, 0, image.width, image.height);
+
+    // 为矩形提供纹理坐标.
+    let texcoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      0.0,  0.0,
+      1.0,  0.0,
+      0.0,  1.0,
+      0.0,  1.0,
+      1.0,  0.0,
+      1.0,  1.0,
+    ]), gl.STATIC_DRAW);
+
+    // 创建纹理。
+    let texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    // 设置参数以便我们可以渲染任何尺寸的图像。
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    // 将图像上传到纹理中。
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+    // 获取 uniforms 属性
+    let resolutionLocation = gl.getUniformLocation(program, "u_resolution");
+
+    webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+
+    // 告诉 WebGL 如何从剪辑空间转换为像素
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+    // 清除画布
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    // 告诉它使用我们的程序（一对着色器）
+    gl.useProgram(program);
+
+    // 开启位置属性
+    gl.enableVertexAttribArray(positionLocation);
+
+    // 绑定位置缓冲区。
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+    // 告诉position属性如何从positionBuffer(ARRAY_BUFFER)中取出数据
+    let sizePos = 2;          // 2 components per iteration
+    let typePos = gl.FLOAT;   // the data is 32bit floats
+    let normalizePos = false; // don't normalize the data
+    let stridePos = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+    let offsetPos = 0;        // start at the beginning of the buffer
+    gl.vertexAttribPointer(
+            positionLocation, sizePos, typePos, normalizePos, stridePos, offsetPos);
+
+    // 打开 texcoord 属性
+    gl.enableVertexAttribArray(texcoordLocation);
+
+    // 绑定 texcoord 缓冲区。
+    gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+
+    // 告诉 texcoord 属性如何从 texcoordBuffer (ARRAY_BUFFER) 中获取数据
+    let sizeTexcoord = 2;          // 2 components per iteration
+    let typeTexcoord = gl.FLOAT;   // the data is 32bit floats
+    let normalizeTexcoord = false; // don't normalize the data
+    let strideTexcoord = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+    let offsetTexcoord = 0;        // start at the beginning of the buffer
+    gl.vertexAttribPointer(
+            texcoordLocation, sizeTexcoord, typeTexcoord, normalizeTexcoord, strideTexcoord, offsetTexcoord);
+
+    // 设置分辨率
+    gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
+
+    // 绘制矩形。
+    let primitiveType = gl.TRIANGLES;
+    let offset = 0;
+    let count = 6;
+    gl.drawArrays(primitiveType, offset, count);
+  }
+
+  function setRectangle(gl, x, y, width, height) {
+    let x1 = x;
+    let x2 = x + width;
+    let y1 = y;
+    let y2 = y + height;
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      x1, y1,
+      x2, y1,
+      x1, y2,
+      x1, y2,
+      x2, y1,
+      x2, y2,
+    ]), gl.STATIC_DRAW);
+  }
+
+  main();
+</script>
+</body>
+</html>
